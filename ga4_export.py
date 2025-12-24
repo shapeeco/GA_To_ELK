@@ -6,7 +6,8 @@ from datetime import datetime, timedelta
 from elasticsearch import Elasticsearch
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import RunReportRequest, DateRange, Dimension, Metric
-from google.oauth2 import service_account
+
+from ga_auth import get_ga_credentials
 
 # Logging Setup
 logging.basicConfig(
@@ -27,9 +28,6 @@ def validate_config():
     if not GA_PROPERTY_ID:
         logger.error("GA_PROPERTY_ID environment variable is not set. Exiting.")
         exit(1)
-    if not GA_CREDENTIALS_PATH or not os.path.exists(GA_CREDENTIALS_PATH):
-        logger.error(f"GA Service Account credentials file not found at: {GA_CREDENTIALS_PATH}. Exiting.")
-        exit(1)
     if not ELASTICSEARCH_HOST:
         logger.error("ELASTICSEARCH_HOST environment variable not set. Exiting.")
         exit(1)
@@ -39,7 +37,7 @@ def main():
 
     # Authenticate Google Analytics client
     try:
-        credentials = service_account.Credentials.from_service_account_file(GA_CREDENTIALS_PATH)
+        credentials = get_ga_credentials()
         ga_client = BetaAnalyticsDataClient(credentials=credentials)
         logger.info("Authenticated to Google Analytics.")
     except Exception as e:
