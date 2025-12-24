@@ -41,15 +41,14 @@ def main():
         request = RunReportRequest(
             property=f"properties/{config.property_id}",
             dimensions=[
-                Dimension(name="sessionDefaultChannelGroup"),
                 Dimension(name="sessionSource"),
                 Dimension(name="sessionMedium"),
                 Dimension(name="sessionCampaignName"),
-                Dimension(name="googleAdsAdGroupName"),
-                Dimension(name="googleAdsKeyword"),
+                Dimension(name="date"),
             ],
             metrics=[
                 Metric(name="sessions"),
+                Metric(name="totalUsers"),
                 Metric(name="conversions"),
                 Metric(name="totalRevenue"),
                 Metric(name="advertiserAdClicks"),
@@ -79,18 +78,17 @@ def main():
         else:
             for idx, row in enumerate(response.rows, 1):
                 print(f"\n--- Record #{idx} ---")
-                print(f"  Channel Group: {row.dimension_values[0].value}")
-                print(f"  Source: {row.dimension_values[1].value}")
-                print(f"  Medium: {row.dimension_values[2].value}")
-                print(f"  Campaign: {row.dimension_values[3].value}")
-                print(f"  Ad Group: {row.dimension_values[4].value}")
-                print(f"  Keyword: {row.dimension_values[5].value}")
+                print(f"  Source: {row.dimension_values[0].value}")
+                print(f"  Medium: {row.dimension_values[1].value}")
+                print(f"  Campaign: {row.dimension_values[2].value}")
+                print(f"  Date: {row.dimension_values[3].value}")
                 print(f"  Sessions: {row.metric_values[0].value}")
-                print(f"  Conversions: {row.metric_values[1].value}")
-                print(f"  Revenue: ${float(row.metric_values[2].value or 0):,.2f}")
-                print(f"  Ad Clicks: {row.metric_values[3].value}")
-                print(f"  Ad Cost: ${float(row.metric_values[4].value or 0):,.2f}")
-                print(f"  Ad Impressions: {row.metric_values[5].value}")
+                print(f"  Total Users: {row.metric_values[1].value}")
+                print(f"  Conversions: {row.metric_values[2].value}")
+                print(f"  Revenue: ${float(row.metric_values[3].value or 0):,.2f}")
+                print(f"  Ad Clicks: {row.metric_values[4].value}")
+                print(f"  Ad Cost: ${float(row.metric_values[5].value or 0):,.2f}")
+                print(f"  Ad Impressions: {row.metric_values[6].value}")
 
             print(f"\n{'='*80}")
             print(f"Total records: {len(response.rows)}")
