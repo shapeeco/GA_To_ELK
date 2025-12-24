@@ -1,4 +1,3 @@
-import os
 import logging
 import datetime
 from datetime import datetime, timedelta
@@ -7,29 +6,25 @@ from elasticsearch import Elasticsearch
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import RunReportRequest, DateRange, Dimension, Metric
 
-from ga_auth import get_ga_credentials
+from ga_auth import GAConfig
+
+# Initialize configuration
+config = GAConfig()
 
 # Logging Setup
 logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    level=config.log_level,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
-# Load Environment Variables
-GA_PROPERTY_ID = os.getenv("GA_PROPERTY_ID")
-GA_CREDENTIALS_PATH = os.getenv("GA_CREDENTIALS_PATH")
-GA_DAYS_TO_PULL = int(os.getenv("GA_DAYS_TO_PULL", "30"))
-GA_REPORT_LIMIT = int(os.getenv("GA_REPORT_LIMIT", "100000"))
-ELASTICSEARCH_HOST = os.getenv("ELASTICSEARCH_HOST")
-ELASTICSEARCH_API_KEY = os.getenv("ELASTICSEARCH_API_KEY")
-
 def validate_config():
-    if not GA_PROPERTY_ID:
-        logger.error("GA_PROPERTY_ID environment variable is not set. Exiting.")
-        exit(1)
-    if not ELASTICSEARCH_HOST:
-        logger.error("ELASTICSEARCH_HOST environment variable not set. Exiting.")
+    """Validate required configuration for GA4 export."""
+    try:
+        config.validate_ga_config()
+        config.validate_elasticsearch_config()
+    except (ValueError, FileNotFoundError) as e:
+        logger.error(f"Configuration error: {e}")
         exit(1)
 
 def main():
@@ -37,7 +32,7 @@ def main():
 
     # Authenticate Google Analytics client
     try:
-        credentials = get_ga_credentials()
+        credentials = config.get_credentials()
         ga_client = BetaAnalyticsDataClient(credentials=credentials)
         logger.info("Authenticated to Google Analytics.")
     except Exception as e:
@@ -46,14 +41,14 @@ def main():
 
     # Prepare GA4 report request
     end_date = datetime.today()
-    start_date = end_date - timedelta(days=GA_DAYS_TO_PULL)
+    start_date = end_date - timedelta(days=config.days_to_pull)
 
     request = RunReportRequest(
-        property=f"properties/{GA_PROPERTY_ID}",
+        property=f"properties/{config.property_id}",
         dimensions=[Dimension(name="date"), Dimension(name="pagePath")],
         metrics=[Metric(name="screenPageViews"), Metric(name="sessions")],
         date_ranges=[DateRange(start_date=start_date.strftime("%Y-%m-%d"), end_date=end_date.strftime("%Y-%m-%d"))],
-        limit=GA_REPORT_LIMIT
+        limit=config.report_limit
     )
 
     # Fetch report data
@@ -67,8 +62,8 @@ def main():
     # Connect Elasticsearch
     try:
         es = Elasticsearch(
-            ELASTICSEARCH_HOST,
-            api_key=ELASTICSEARCH_API_KEY,
+            config.elasticsearch_host,
+            api_key=config.elasticsearch_api_key,
             verify_certs=False  # Use only if self hosting ssl certificates as it disables SSL cert validation. If using normal SSL, then change to True
         )
         if not es.ping():

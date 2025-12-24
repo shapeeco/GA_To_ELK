@@ -1,22 +1,23 @@
-import os
 import logging
 from google.analytics.admin_v1beta import AnalyticsAdminServiceClient
-from ga_auth import get_ga_credentials
+from ga_auth import GAConfig
+
+# Initialize configuration
+config = GAConfig()
 
 # Logging Setup
 logging.basicConfig(
-    level=os.getenv("LOG_LEVEL", "INFO").upper(),
+    level=config.log_level,
     format="%(asctime)s - %(name)s - %(levelname)s - %(message)s"
 )
 logger = logging.getLogger(__name__)
 
-# Load Environment Variables
-GA_PROPERTY_ID = os.getenv("GA_PROPERTY_ID")
-
 def validate_config():
-    """Validate required environment variables are set."""
-    if not GA_PROPERTY_ID:
-        logger.error("GA_PROPERTY_ID environment variable is not set. Exiting.")
+    """Validate required configuration."""
+    try:
+        config.validate_ga_config()
+    except (ValueError, FileNotFoundError) as e:
+        logger.error(f"Configuration error: {e}")
         exit(1)
 
 def main():
@@ -25,7 +26,7 @@ def main():
 
     # Authenticate Google Analytics Admin API client
     try:
-        credentials = get_ga_credentials()
+        credentials = config.get_credentials()
         admin_client = AnalyticsAdminServiceClient(credentials=credentials)
         logger.info("Authenticated to Google Analytics Admin API.")
     except Exception as e:
@@ -34,10 +35,10 @@ def main():
 
     # List Google Ads links
     try:
-        property_name = f"properties/{GA_PROPERTY_ID}"
+        property_name = f"properties/{config.property_id}"
         links = admin_client.list_google_ads_links(parent=property_name)
 
-        logger.info(f"Fetching Google Ads links for property: {GA_PROPERTY_ID}")
+        logger.info(f"Fetching Google Ads links for property: {config.property_id}")
 
         print("\n" + "="*60)
         print("Google Ads Links:")
