@@ -37,62 +37,76 @@ def main():
 
     # List all properties for the account
     try:
-        # Use account_id if available, otherwise fall back to property_id for backwards compatibility
-        account_id = config.account_id or config.property_id
-        account_name = f"accounts/{account_id}"
-        logger.info(f"Fetching properties for account: {account_name}")
+        # Use list_account_summaries which gives us all properties without complex parameters
+        logger.info("Fetching all accessible properties via account summaries")
 
-        # Get all properties
-        properties = admin_client.list_properties(parent=account_name)
+        account_summaries = admin_client.list_account_summaries()
 
         print("\n" + "="*100)
-        print(f"Properties for Account: {account_id}")
+        print("All Accessible Properties")
         print("="*100)
 
         property_count = 0
-        for property in properties:
-            property_count += 1
-            property_id = property.name.split('/')[-1]
 
-            print(f"\n{'='*100}")
-            print(f"Property #{property_count}")
-            print(f"{'='*100}")
-            print(f"  Property Name: {property.display_name}")
-            print(f"  Property ID: {property_id}")
-            print(f"  Resource Name: {property.name}")
-            print(f"  Time Zone: {property.time_zone}")
-            print(f"  Currency Code: {property.currency_code}")
-            print(f"  Industry Category: {property.industry_category}")
+        # Iterate through account summaries and their property summaries
+        for summary in account_summaries:
+            account_name = summary.account
+            account_display_name = summary.display_name
 
-            # Fetch available dimensions for this property
-            try:
-                logger.info(f"Fetching dimensions for property: {property_id}")
+            print(f"\nAccount: {account_display_name} ({account_name})")
 
-                # Get metadata (dimensions and metrics)
-                metadata = data_client.get_metadata(name=f"properties/{property_id}/metadata")
+            for prop_summary in summary.property_summaries:
+                property_count += 1
+                property_resource_name = prop_summary.property
+                property_id = property_resource_name.split('/')[-1]
 
-                print(f"\n  Available Dimensions ({len(metadata.dimensions)}):")
-                print(f"  {'-'*96}")
+                # Get full property details
+                try:
+                    property = admin_client.get_property(name=property_resource_name)
 
-                for dimension in metadata.dimensions:
-                    print(f"    - {dimension.api_name:40} | Category: {dimension.category:20} | UI Name: {dimension.ui_name}")
+                    print(f"\n{'='*100}")
+                    print(f"Property #{property_count}")
+                    print(f"{'='*100}")
+                    print(f"  Property Name: {property.display_name}")
+                    print(f"  Property ID: {property_id}")
+                    print(f"  Resource Name: {property.name}")
+                    print(f"  Time Zone: {property.time_zone}")
+                    print(f"  Currency Code: {property.currency_code}")
+                    print(f"  Industry Category: {property.industry_category}")
 
-                print(f"\n  Available Metrics ({len(metadata.metrics)}):")
-                print(f"  {'-'*96}")
+                    # Fetch available dimensions for this property
+                    try:
+                        logger.info(f"Fetching dimensions for property: {property_id}")
 
-                for metric in metadata.metrics:
-                    print(f"    - {metric.api_name:40} | Category: {metric.category:20} | UI Name: {metric.ui_name}")
+                        # Get metadata (dimensions and metrics)
+                        metadata = data_client.get_metadata(name=f"properties/{property_id}/metadata")
 
-            except Exception as e:
-                logger.error(f"Failed to fetch dimensions for property {property_id}: {e}")
-                print(f"  Error fetching dimensions: {e}")
+                        print(f"\n  Available Dimensions ({len(metadata.dimensions)}):")
+                        print(f"  {'-'*96}")
+
+                        for dimension in metadata.dimensions:
+                            print(f"    - {dimension.api_name:40} | Category: {dimension.category:20} | UI Name: {dimension.ui_name}")
+
+                        print(f"\n  Available Metrics ({len(metadata.metrics)}):")
+                        print(f"  {'-'*96}")
+
+                        for metric in metadata.metrics:
+                            print(f"    - {metric.api_name:40} | Category: {metric.category:20} | UI Name: {metric.ui_name}")
+
+                    except Exception as e:
+                        logger.error(f"Failed to fetch dimensions for property {property_id}: {e}")
+                        print(f"  Error fetching dimensions: {e}")
+
+                except Exception as e:
+                    logger.error(f"Failed to get property details for {property_resource_name}: {e}")
+                    print(f"  Error: {e}")
 
         print(f"\n{'='*100}")
         print(f"Total Properties Found: {property_count}")
         print(f"{'='*100}\n")
 
         if property_count == 0:
-            print("\nNo properties found for this account.")
+            print("\nNo properties found.")
 
     except Exception as e:
         logger.error(f"Failed to list properties: {e}")
