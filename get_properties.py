@@ -1,6 +1,6 @@
 import logging
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
-from google.analytics.data_v1beta.types import RunReportRequest, DateRange, Dimension, Metric
+from google.analytics.admin import AnalyticsAdminServiceClient
 from ga_auth import GAConfig
 
 # Initialize configuration
@@ -22,126 +22,80 @@ def validate_config():
         exit(1)
 
 def main():
-    """Main function to fetch website engagement metrics from GA4."""
+    """Main function to list all properties and their available dimensions."""
     validate_config()
 
-    # Authenticate Google Analytics client
+    # Authenticate Google Analytics Admin client
     try:
         credentials = config.get_credentials()
-        client = BetaAnalyticsDataClient(credentials=credentials)
+        admin_client = AnalyticsAdminServiceClient(credentials=credentials)
+        data_client = BetaAnalyticsDataClient(credentials=credentials)
         logger.info("Authenticated to Google Analytics.")
     except Exception as e:
         logger.error(f"Failed to authenticate to Google Analytics: {e}")
         exit(1)
 
-    # Query website engagement data from GA4
+    # List all properties for the account
     try:
-        logger.info(f"Fetching website engagement metrics for property: {config.property_id}")
+        # Use account_id if available, otherwise fall back to property_id for backwards compatibility
+        account_id = config.account_id or config.property_id
+        account_name = f"accounts/{account_id}"
+        logger.info(f"Fetching properties for account: {account_name}")
 
-        request = RunReportRequest(
-            property=f"properties/{config.property_id}",
-            dimensions=[
-                Dimension(name="pageTitle"),
-                Dimension(name="pagePath"),
-                Dimension(name="sessionSource"),
-                Dimension(name="sessionMedium"),
-                Dimension(name="country"),
-                Dimension(name="city"),
-                Dimension(name="date"),
-            ],
-            metrics=[
-                Metric(name="screenPageViews"),
-                Metric(name="scrolledUsers"),
-                Metric(name="userEngagementDuration"),
-                Metric(name="eventCount"),
-                Metric(name="sessions"),
-                Metric(name="totalUsers"),
-                Metric(name="engagedSessions"),
-            ],
-            date_ranges=[DateRange(start_date=f"{config.days_to_pull}daysAgo", end_date="today")],
-        )
+        # Get all properties
+        properties = admin_client.list_properties(parent=account_name)
 
-        response = client.run_report(request)
-        logger.info(f"Successfully retrieved {len(response.rows)} rows of website engagement metrics.")
-
-        # Display results
         print("\n" + "="*100)
-        print("Website Engagement Metrics Report")
-        print(f"Property ID: {config.property_id}")
-        print(f"Period: Last {config.days_to_pull} days")
+        print(f"Properties for Account: {account_id}")
         print("="*100)
 
-        if len(response.rows) == 0:
-            print("\nNo engagement data found for this property.")
-        else:
-            for idx, row in enumerate(response.rows, 1):
-                print(f"\n--- Record #{idx} ---")
-                print(f"  Page Title: {row.dimension_values[0].value}")
-                print(f"  Page Path: {row.dimension_values[1].value}")
-                print(f"  Source: {row.dimension_values[2].value}")
-                print(f"  Medium: {row.dimension_values[3].value}")
-                print(f"  Country: {row.dimension_values[4].value}")
-                print(f"  City: {row.dimension_values[5].value}")
-                print(f"  Date: {row.dimension_values[6].value}")
-                print(f"  Page Views: {row.metric_values[0].value}")
-                print(f"  Scrolled Users: {row.metric_values[1].value}")
-                print(f"  Engagement Duration (sec): {float(row.metric_values[2].value or 0):,.2f}")
-                print(f"  Total Events: {row.metric_values[3].value}")
-                print(f"  Sessions: {row.metric_values[4].value}")
-                print(f"  Total Users: {row.metric_values[5].value}")
-                print(f"  Engaged Sessions: {row.metric_values[6].value}")
+        property_count = 0
+        for property in properties:
+            property_count += 1
+            property_id = property.name.split('/')[-1]
 
             print(f"\n{'='*100}")
-            print(f"Total records: {len(response.rows)}")
-            print(f"{'='*100}\n")
+            print(f"Property #{property_count}")
+            print(f"{'='*100}")
+            print(f"  Property Name: {property.display_name}")
+            print(f"  Property ID: {property_id}")
+            print(f"  Resource Name: {property.name}")
+            print(f"  Time Zone: {property.time_zone}")
+            print(f"  Currency Code: {property.currency_code}")
+            print(f"  Industry Category: {property.industry_category}")
 
-        # Query specific event types (outbound clicks, file downloads, video engagement)
-        logger.info("Fetching specific event metrics...")
+            # Fetch available dimensions for this property
+            try:
+                logger.info(f"Fetching dimensions for property: {property_id}")
 
-        event_request = RunReportRequest(
-            property=f"properties/{config.property_id}",
-            dimensions=[
-                Dimension(name="eventName"),
-                Dimension(name="pageTitle"),
-                Dimension(name="date"),
-            ],
-            metrics=[
-                Metric(name="eventCount"),
-                Metric(name="totalUsers"),
-            ],
-            date_ranges=[DateRange(start_date=f"{config.days_to_pull}daysAgo", end_date="today")],
-        )
+                # Get metadata (dimensions and metrics)
+                metadata = data_client.get_metadata(name=f"properties/{property_id}/metadata")
 
-        event_response = client.run_report(event_request)
-        logger.info(f"Successfully retrieved {len(event_response.rows)} rows of event metrics.")
+                print(f"\n  Available Dimensions ({len(metadata.dimensions)}):")
+                print(f"  {'-'*96}")
 
-        # Display event results
-        print("\n" + "="*100)
-        print("Event Metrics Report (Clicks, Downloads, Video Engagement)")
-        print("="*100)
+                for dimension in metadata.dimensions:
+                    print(f"    - {dimension.api_name:40} | Category: {dimension.category:20} | UI Name: {dimension.ui_name}")
 
-        if len(event_response.rows) == 0:
-            print("\nNo event data found for this property.")
-        else:
-            # Filter for relevant events
-            relevant_events = ['click', 'file_download', 'video_start', 'video_progress',
-                             'video_complete', 'scroll', 'outbound']
+                print(f"\n  Available Metrics ({len(metadata.metrics)}):")
+                print(f"  {'-'*96}")
 
-            for idx, row in enumerate(event_response.rows, 1):
-                event_name = row.dimension_values[0].value.lower()
-                # Display all events or filter for relevant ones
-                if any(relevant in event_name for relevant in relevant_events):
-                    print(f"\n--- Event #{idx} ---")
-                    print(f"  Event Name: {row.dimension_values[0].value}")
-                    print(f"  Page Title: {row.dimension_values[1].value}")
-                    print(f"  Date: {row.dimension_values[2].value}")
-                    print(f"  Event Count: {row.metric_values[0].value}")
-                    print(f"  Users: {row.metric_values[1].value}")
+                for metric in metadata.metrics:
+                    print(f"    - {metric.api_name:40} | Category: {metric.category:20} | UI Name: {metric.ui_name}")
 
-            print(f"\n{'='*100}\n")
+            except Exception as e:
+                logger.error(f"Failed to fetch dimensions for property {property_id}: {e}")
+                print(f"  Error fetching dimensions: {e}")
+
+        print(f"\n{'='*100}")
+        print(f"Total Properties Found: {property_count}")
+        print(f"{'='*100}\n")
+
+        if property_count == 0:
+            print("\nNo properties found for this account.")
 
     except Exception as e:
-        logger.error(f"Failed to fetch website engagement metrics: {e}")
+        logger.error(f"Failed to list properties: {e}")
         logger.exception("Full error details:")
         exit(1)
 

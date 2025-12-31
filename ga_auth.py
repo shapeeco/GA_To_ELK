@@ -14,7 +14,8 @@ class GAConfig:
         self.credentials_path = os.getenv("GA_CREDENTIALS_PATH")
 
         # Google Analytics settings
-        self.property_id = os.getenv("GA_PROPERTY_ID")
+        self.account_id = os.getenv("GA_ACCOUNT_ID")
+        self.property_id = os.getenv("GA_PROPERTY_ID")  # For backwards compatibility
         self.days_to_pull = int(os.getenv("GA_DAYS_TO_PULL", "30"))
         self.report_limit = int(os.getenv("GA_REPORT_LIMIT", "100000"))
 
@@ -30,8 +31,9 @@ class GAConfig:
 
     def validate_ga_config(self):
         """Validate required Google Analytics configuration."""
-        if not self.property_id:
-            raise ValueError("GA_PROPERTY_ID environment variable is not set")
+        # Check for account_id first, fall back to property_id for backwards compatibility
+        if not self.account_id and not self.property_id:
+            raise ValueError("GA_ACCOUNT_ID or GA_PROPERTY_ID environment variable must be set")
         if not self.credentials_path:
             raise ValueError("GA_CREDENTIALS_PATH environment variable is not set")
         if not os.path.exists(self.credentials_path):
