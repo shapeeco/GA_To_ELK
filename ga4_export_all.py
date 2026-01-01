@@ -23,7 +23,7 @@ export_property_data(ga_client, es, property_id, property_name)
 
     Fetches the following data:
     - Dimensions: pageTitle, pagePath, sessionSource, sessionMedium, country, city, date
-    - Metrics: screenPageViews, scrolledUsers, userEngagementDuration, eventCount,
+    - Metrics: screenPageViews, scrolledUsers, activeUsers, userEngagementDuration, eventCount,
                sessions, totalUsers, engagedSessions
 
     Args:
@@ -140,6 +140,7 @@ def export_property_data(ga_client, es, property_id, property_name):
             metrics=[
                 Metric(name="screenPageViews"),
                 Metric(name="scrolledUsers"),
+                Metric(name="activeUsers"),
                 Metric(name="userEngagementDuration"),
                 Metric(name="eventCount"),
                 Metric(name="sessions"),
@@ -176,11 +177,12 @@ def export_property_data(ga_client, es, property_id, property_name):
                 # Add metrics
                 "screenPageViews": int(row.metric_values[0].value or 0),
                 "scrolledUsers": int(row.metric_values[1].value or 0),
-                "userEngagementDuration": float(row.metric_values[2].value or 0),
-                "eventCount": int(row.metric_values[3].value or 0),
-                "sessions": int(row.metric_values[4].value or 0),
-                "totalUsers": int(row.metric_values[5].value or 0),
-                "engagedSessions": int(row.metric_values[6].value or 0),
+                "activeUsers": int(row.metric_values[2].value or 0),
+                "userEngagementDuration": float(row.metric_values[3].value or 0),
+                "eventCount": int(row.metric_values[4].value or 0),
+                "sessions": int(row.metric_values[5].value or 0),
+                "totalUsers": int(row.metric_values[6].value or 0),
+                "engagedSessions": int(row.metric_values[7].value or 0),
 
                 # Add timestamp
                 "@timestamp": datetime.utcnow().isoformat()
