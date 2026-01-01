@@ -33,44 +33,32 @@ def validate_config():
         logger.error(f"Configuration error: {e}")
         exit(1)
 
-def create_index_if_not_exists(es, index_name):
-    """Create Elasticsearch index if it doesn't exist."""
+def create_datastream_if_not_exists(es, datastream_name):
+    """Create Elasticsearch data stream if it doesn't exist."""
     try:
-        if not es.indices.exists(index=index_name):
-            # Try to delete the conflicting template first
-            try:
-                es.indices.delete_index_template(name="default_replicas_0_for_single_node", ignore=[404])
-                logger.info("Deleted conflicting index template")
-            except Exception:
-                pass  # Template might not exist or we don't have permission
-
-            # Create index with explicit settings to avoid data stream template conflicts
-            es.indices.create(
-                index=index_name,
-                settings={
-                    "number_of_shards": 1,
-                    "number_of_replicas": 0
-                }
-            )
-            logger.info(f"Created new Elasticsearch index: {index_name}")
+        # Check if data stream exists
+        if not es.indices.exists(index=datastream_name):
+            # Create data stream
+            es.indices.create_data_stream(name=datastream_name)
+            logger.info(f"Created new Elasticsearch data stream: {datastream_name}")
         else:
-            logger.info(f"Using existing Elasticsearch index: {index_name}")
+            logger.info(f"Using existing Elasticsearch data stream: {datastream_name}")
     except Exception as e:
-        # If index creation fails, log warning but continue - we'll try to insert anyway
-        logger.warning(f"Could not create index {index_name}: {e}. Will attempt to insert documents anyway.")
+        # If data stream creation fails, log warning but continue
+        logger.warning(f"Could not create data stream {datastream_name}: {e}. Will attempt to insert documents anyway.")
         pass
 
 def export_property_data(ga_client, es, property_id, property_name):
     """Export data for a single property to Elasticsearch."""
     try:
-        # Create index name from property name (sanitize for Elasticsearch)
-        # Use 'analytics-' prefix to avoid conflicts with data stream templates
-        sanitized_name = property_name.lower().replace(' ', '-').replace('_', '-')
-        index_name = f"analytics-ga4-{sanitized_name}-{property_id}"
-        logger.info(f"Exporting data for property: {property_name} ({property_id}) to index: {index_name}")
+        # Create data stream name from property name (sanitize for Elasticsearch)
+        # Data streams work better for time-series data like GA4 metrics
+        sanitized_name = property_name.lower().replace(' ', '-').replace('_', '-').replace('.', '-')
+        datastream_name = f"ga4metrics-{sanitized_name}-{property_id}"
+        logger.info(f"Exporting data for property: {property_name} ({property_id}) to data stream: {datastream_name}")
 
-        # Create index if it doesn't exist
-        create_index_if_not_exists(es, index_name)
+        # Create data stream if it doesn't exist
+        create_datastream_if_not_exists(es, datastream_name)
 
         # Prepare GA4 report request with comprehensive dimensions and metrics
         request = RunReportRequest(
@@ -133,10 +121,10 @@ def export_property_data(ga_client, es, property_id, property_name):
                 "@timestamp": datetime.utcnow().isoformat()
             }
 
-            es.index(index=index_name, document=doc)
+            es.index(index=datastream_name, document=doc)
             doc_count += 1
 
-        logger.info(f"Successfully sent {doc_count} documents to Elasticsearch index: {index_name}")
+        logger.info(f"Successfully sent {doc_count} documents to Elasticsearch data stream: {datastream_name}")
         return doc_count
 
     except Exception as e:
