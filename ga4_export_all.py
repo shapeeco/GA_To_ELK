@@ -185,7 +185,7 @@ def export_property_data(ga_client, es, property_id, property_name):
                 "engagedSessions": int(row.metric_values[7].value or 0),
 
                 # Add timestamp
-                "@timestamp": datetime.utcnow().isoformat()
+                "@timestamp": datetime.now(datetime.UTC).isoformat()
             }
 
             # Generate unique document ID based on property, date, and key dimensions

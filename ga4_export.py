@@ -86,7 +86,7 @@ def main():
         for row in response.rows:
             doc = {dim.name: val.value for dim, val in zip(response.dimension_headers, row.dimension_values)}
             doc.update({metric.name: float(val.value or 0) for metric, val in zip(response.metric_headers, row.metric_values)})
-            doc['@timestamp'] = datetime.datetime.utcnow().isoformat()
+            doc['@timestamp'] = datetime.now(datetime.UTC).isoformat()
 
             # Generate unique document ID to prevent duplicates
             doc_id_string = f"{config.property_id}-{doc.get('date', '')}-{doc.get('pagePath', '')}"
