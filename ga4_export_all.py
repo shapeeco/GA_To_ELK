@@ -1,3 +1,67 @@
+"""
+GA4 to Elasticsearch Exporter - Export all GA4 properties to Elasticsearch data streams
+
+This script automatically discovers all accessible Google Analytics 4 properties and exports
+their metrics to Elasticsearch data streams for visualization in Kibana.
+
+Functions:
+---------
+validate_config()
+    Validates required environment variables for GA4 and Elasticsearch connections.
+    Exits the program if configuration is invalid.
+
+create_datastream_if_not_exists(es, datastream_name)
+    Creates an Elasticsearch data stream if it doesn't already exist.
+    Data streams are optimized for time-series data like GA4 metrics.
+
+    Args:
+        es: Elasticsearch client instance
+        datastream_name: Name of the data stream to create (e.g., 'ga4metrics-property-123456')
+
+export_property_data(ga_client, es, property_id, property_name)
+    Exports GA4 metrics for a single property to its dedicated Elasticsearch data stream.
+
+    Fetches the following data:
+    - Dimensions: pageTitle, pagePath, sessionSource, sessionMedium, country, city, date
+    - Metrics: screenPageViews, scrolledUsers, userEngagementDuration, eventCount,
+               sessions, totalUsers, engagedSessions
+
+    Args:
+        ga_client: Google Analytics Data API client
+        es: Elasticsearch client instance
+        property_id: GA4 property ID (numeric)
+        property_name: Display name of the property
+
+    Returns:
+        int: Number of documents successfully exported
+
+main()
+    Main entry point that orchestrates the export process:
+    1. Authenticates to Google Analytics and Elasticsearch
+    2. Discovers all accessible GA4 properties via account summaries
+    3. Exports data from each property to a separate data stream
+    4. Prints summary statistics
+
+Environment Variables Required:
+------------------------------
+- GA_CREDENTIALS_PATH: Path to Google service account JSON credentials
+- GA_ACCOUNT_ID or GA_PROPERTY_ID: GA4 account/property identifier
+- GA_DAYS_TO_PULL: Number of days of historical data to fetch (default: 30)
+- GA_REPORT_LIMIT: Maximum number of rows per report (default: 100000)
+- ELASTICSEARCH_HOST: Elasticsearch server URL
+- ELASTICSEARCH_API_KEY: Elasticsearch API key for authentication
+- LOG_LEVEL: Logging level (default: INFO)
+
+Usage:
+------
+    python ga4_export_all.py
+
+Output:
+-------
+Creates Elasticsearch data streams named: ga4metrics-{property-name}-{property-id}
+Each data stream contains time-series documents with GA4 metrics and dimensions.
+"""
+
 import logging
 import datetime
 import warnings
