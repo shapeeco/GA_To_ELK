@@ -1,3 +1,10 @@
+"""
+GA4 to Elasticsearch Exporter - Single Property Export
+
+Exports GA4 metrics from a single property to an Elasticsearch index.
+Fetches basic dimensions (date, pagePath) and metrics (screenPageViews, sessions).
+"""
+
 import logging
 import datetime
 from datetime import datetime, timedelta

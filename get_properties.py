@@ -1,3 +1,10 @@
+"""
+GA4 Properties Lister
+
+Lists all accessible GA4 properties with their details, available dimensions, and metrics.
+Useful for discovering property IDs and understanding available data fields.
+"""
+
 import logging
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.admin import AnalyticsAdminServiceClient

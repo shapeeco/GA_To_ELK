@@ -1,3 +1,10 @@
+"""
+Google Analytics Configuration Module
+
+Centralized configuration management for Google Analytics and Elasticsearch connections.
+Handles environment variables, credential loading, and configuration validation.
+"""
+
 import os
 import logging
 from google.oauth2 import service_account

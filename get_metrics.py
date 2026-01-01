@@ -1,3 +1,10 @@
+"""
+GA4 Google Ads Metrics Fetcher
+
+Fetches Google Ads metrics from GA4 including sessions, conversions, revenue, and ad performance.
+Filters data for Google source and displays comprehensive advertising metrics.
+"""
+
 import logging
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
 from google.analytics.data_v1beta.types import RunReportRequest, DateRange, Dimension, Metric, FilterExpression, Filter
