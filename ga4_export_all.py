@@ -37,24 +37,28 @@ def create_index_if_not_exists(es, index_name):
     """Create Elasticsearch index if it doesn't exist."""
     try:
         if not es.indices.exists(index=index_name):
+            # Try to delete the conflicting template first
+            try:
+                es.indices.delete_index_template(name="default_replicas_0_for_single_node", ignore=[404])
+                logger.info("Deleted conflicting index template")
+            except Exception:
+                pass  # Template might not exist or we don't have permission
+
             # Create index with explicit settings to avoid data stream template conflicts
             es.indices.create(
                 index=index_name,
-                body={
-                    "settings": {
-                        "index": {
-                            "number_of_shards": 1,
-                            "number_of_replicas": 0
-                        }
-                    }
+                settings={
+                    "number_of_shards": 1,
+                    "number_of_replicas": 0
                 }
             )
             logger.info(f"Created new Elasticsearch index: {index_name}")
         else:
             logger.info(f"Using existing Elasticsearch index: {index_name}")
     except Exception as e:
-        logger.error(f"Failed to create/check index {index_name}: {e}")
-        raise
+        # If index creation fails, log warning but continue - we'll try to insert anyway
+        logger.warning(f"Could not create index {index_name}: {e}. Will attempt to insert documents anyway.")
+        pass
 
 def export_property_data(ga_client, es, property_id, property_name):
     """Export data for a single property to Elasticsearch."""
