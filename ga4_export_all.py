@@ -65,6 +65,7 @@ Each data stream contains time-series documents with GA4 metrics and dimensions.
 import logging
 import datetime
 import warnings
+import hashlib
 from datetime import datetime, timedelta
 
 from elasticsearch import Elasticsearch
@@ -185,7 +186,12 @@ def export_property_data(ga_client, es, property_id, property_name):
                 "@timestamp": datetime.utcnow().isoformat()
             }
 
-            es.index(index=datastream_name, document=doc)
+            # Generate unique document ID based on property, date, and key dimensions
+            # This prevents duplicate data if the script is run multiple times
+            doc_id_string = f"{property_id}-{doc['date']}-{doc['pagePath']}-{doc['sessionSource']}-{doc['sessionMedium']}-{doc['country']}-{doc['city']}"
+            doc_id = hashlib.md5(doc_id_string.encode()).hexdigest()
+
+            es.index(index=datastream_name, document=doc, id=doc_id)
             doc_count += 1
 
         logger.info(f"Successfully sent {doc_count} documents to Elasticsearch data stream: {datastream_name}")

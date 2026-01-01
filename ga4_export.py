@@ -7,6 +7,7 @@ Fetches basic dimensions (date, pagePath) and metrics (screenPageViews, sessions
 
 import logging
 import datetime
+import hashlib
 from datetime import datetime, timedelta
 
 from elasticsearch import Elasticsearch
@@ -87,7 +88,11 @@ def main():
             doc.update({metric.name: float(val.value or 0) for metric, val in zip(response.metric_headers, row.metric_values)})
             doc['@timestamp'] = datetime.datetime.utcnow().isoformat()
 
-            es.index(index="ga4-data", document=doc)
+            # Generate unique document ID to prevent duplicates
+            doc_id_string = f"{config.property_id}-{doc.get('date', '')}-{doc.get('pagePath', '')}"
+            doc_id = hashlib.md5(doc_id_string.encode()).hexdigest()
+
+            es.index(index="ga4-data", document=doc, id=doc_id)
 
         logger.info("Successfully sent GA data to Elasticsearch index: ga4-data")
     except Exception as e:
