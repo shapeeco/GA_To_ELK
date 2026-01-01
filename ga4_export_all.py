@@ -1,5 +1,6 @@
 import logging
 import datetime
+import warnings
 from datetime import datetime, timedelta
 
 from elasticsearch import Elasticsearch
@@ -8,6 +9,10 @@ from google.analytics.data_v1beta.types import RunReportRequest, DateRange, Dime
 from google.analytics.admin import AnalyticsAdminServiceClient
 
 from ga_auth import GAConfig
+
+# Suppress SSL warnings when verify_certs=False
+warnings.filterwarnings('ignore', message='Unverified HTTPS request')
+warnings.filterwarnings('ignore', message='Connecting to .* using TLS with verify_certs=False is insecure')
 
 # Initialize configuration
 config = GAConfig()
@@ -32,7 +37,18 @@ def create_index_if_not_exists(es, index_name):
     """Create Elasticsearch index if it doesn't exist."""
     try:
         if not es.indices.exists(index=index_name):
-            es.indices.create(index=index_name)
+            # Create index with explicit settings to avoid data stream template conflicts
+            es.indices.create(
+                index=index_name,
+                body={
+                    "settings": {
+                        "index": {
+                            "number_of_shards": 1,
+                            "number_of_replicas": 0
+                        }
+                    }
+                }
+            )
             logger.info(f"Created new Elasticsearch index: {index_name}")
         else:
             logger.info(f"Using existing Elasticsearch index: {index_name}")
@@ -44,7 +60,9 @@ def export_property_data(ga_client, es, property_id, property_name):
     """Export data for a single property to Elasticsearch."""
     try:
         # Create index name from property name (sanitize for Elasticsearch)
-        index_name = f"ga4-{property_name.lower().replace(' ', '-').replace('_', '-')}-{property_id}"
+        # Use 'analytics-' prefix to avoid conflicts with data stream templates
+        sanitized_name = property_name.lower().replace(' ', '-').replace('_', '-')
+        index_name = f"analytics-ga4-{sanitized_name}-{property_id}"
         logger.info(f"Exporting data for property: {property_name} ({property_id}) to index: {index_name}")
 
         # Create index if it doesn't exist
