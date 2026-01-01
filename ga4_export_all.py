@@ -192,8 +192,16 @@ def export_property_data(ga_client, es, property_id, property_name):
             doc_id_string = f"{property_id}-{doc['date']}-{doc['pagePath']}-{doc['sessionSource']}-{doc['sessionMedium']}-{doc['country']}-{doc['city']}"
             doc_id = hashlib.md5(doc_id_string.encode()).hexdigest()
 
-            es.index(index=datastream_name, document=doc, id=doc_id)
-            doc_count += 1
+            # Use op_type='create' for data streams - will skip if document already exists
+            try:
+                es.index(index=datastream_name, document=doc, id=doc_id, op_type='create')
+                doc_count += 1
+            except Exception as e:
+                # Document already exists, skip it (this prevents duplicates)
+                if 'version_conflict_engine_exception' in str(e):
+                    logger.debug(f"Skipping duplicate document: {doc_id}")
+                else:
+                    raise
 
         logger.info(f"Successfully sent {doc_count} documents to Elasticsearch data stream: {datastream_name}")
         return doc_count

@@ -91,6 +91,7 @@ def main():
             doc_id_string = f"{config.property_id}-{doc.get('date', '')}-{doc.get('pagePath', '')}"
             doc_id = hashlib.md5(doc_id_string.encode()).hexdigest()
 
+            # Regular index allows updates, so this will overwrite if exists
             es.index(index="ga4-data", document=doc, id=doc_id)
 
         logger.info("Successfully sent GA data to Elasticsearch index: ga4-data")
