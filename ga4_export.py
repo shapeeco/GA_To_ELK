@@ -6,9 +6,8 @@ Fetches basic dimensions (date, pagePath) and metrics (screenPageViews, sessions
 """
 
 import logging
-import datetime
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from elasticsearch import Elasticsearch
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
@@ -86,7 +85,7 @@ def main():
         for row in response.rows:
             doc = {dim.name: val.value for dim, val in zip(response.dimension_headers, row.dimension_values)}
             doc.update({metric.name: float(val.value or 0) for metric, val in zip(response.metric_headers, row.metric_values)})
-            doc['@timestamp'] = datetime.now(datetime.UTC).isoformat()
+            doc['@timestamp'] = datetime.now(timezone.utc).isoformat()
 
             # Generate unique document ID to prevent duplicates
             doc_id_string = f"{config.property_id}-{doc.get('date', '')}-{doc.get('pagePath', '')}"

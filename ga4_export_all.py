@@ -63,10 +63,9 @@ Each data stream contains time-series documents with GA4 metrics and dimensions.
 """
 
 import logging
-import datetime
 import warnings
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from elasticsearch import Elasticsearch
 from google.analytics.data_v1beta import BetaAnalyticsDataClient
@@ -185,7 +184,7 @@ def export_property_data(ga_client, es, property_id, property_name):
                 "engagedSessions": int(row.metric_values[7].value or 0),
 
                 # Add timestamp
-                "@timestamp": datetime.now(datetime.UTC).isoformat()
+                "@timestamp": datetime.now(timezone.utc).isoformat()
             }
 
             # Generate unique document ID based on property, date, and key dimensions
