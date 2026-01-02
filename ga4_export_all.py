@@ -22,7 +22,7 @@ export_property_data(ga_client, es, property_id, property_name)
     Exports GA4 metrics for a single property to its dedicated Elasticsearch data stream.
 
     Fetches the following data:
-    - Dimensions: pageTitle, pagePath, sessionSource, sessionMedium, country, city, date
+    - Dimensions: pageTitle, pagePath, sessionSource, sessionMedium, country, city, platform, date
     - Metrics: screenPageViews, scrolledUsers, activeUsers, userEngagementDuration, eventCount,
                sessions, totalUsers, engagedSessions
 
@@ -134,6 +134,7 @@ def export_property_data(ga_client, es, property_id, property_name):
                 Dimension(name="sessionMedium"),
                 Dimension(name="country"),
                 Dimension(name="city"),
+                Dimension(name="platform"),
                 Dimension(name="date"),
             ],
             metrics=[
@@ -171,7 +172,8 @@ def export_property_data(ga_client, es, property_id, property_name):
                 "sessionMedium": row.dimension_values[3].value,
                 "country": row.dimension_values[4].value,
                 "city": row.dimension_values[5].value,
-                "date": row.dimension_values[6].value,
+                "platform": row.dimension_values[6].value,
+                "date": row.dimension_values[7].value,
 
                 # Add metrics
                 "screenPageViews": int(row.metric_values[0].value or 0),
@@ -189,7 +191,7 @@ def export_property_data(ga_client, es, property_id, property_name):
 
             # Generate unique document ID based on property, date, and key dimensions
             # This prevents duplicate data if the script is run multiple times
-            doc_id_string = f"{property_id}-{doc['date']}-{doc['pagePath']}-{doc['sessionSource']}-{doc['sessionMedium']}-{doc['country']}-{doc['city']}"
+            doc_id_string = f"{property_id}-{doc['date']}-{doc['pagePath']}-{doc['sessionSource']}-{doc['sessionMedium']}-{doc['country']}-{doc['city']}-{doc['platform']}"
             doc_id = hashlib.md5(doc_id_string.encode()).hexdigest()
 
             # Use op_type='create' for data streams - will skip if document already exists
